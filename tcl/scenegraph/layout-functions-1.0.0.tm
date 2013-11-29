@@ -180,7 +180,7 @@ odfi::scenegraph::newLayout "row" {
     if {$expandHeight==true} {
         $group each {
 
-            if {[::odfi::common::isClass $it ::edid::prototyping::fp::Group] && ([$elt getHeight] < $tallest)} {
+            if {[::odfi::common::isClass $it ::odfi::scenegraph::Group] && ([$elt getHeight] < $tallest)} {
 
                     puts "Adjusting Height to tallest $tallest, actual [$elt getHeight]"
                     $it relayout [list target-height $tallest]
@@ -205,6 +205,7 @@ odfi::scenegraph::newLayout "flowGrid" {
     set row-spacing     [$constraints getInt        row-spacing -1]
     set column-spacing  [$constraints getInt        column-spacing -1]
     set alignHeight     [$constraints getTrueFalse  align-height true]
+    set alignWidth      [$constraints getTrueFalse  align-width true]
     set expandWidth     [$constraints getTrueFalse  expand-width false]
     ## eof-sect: flowGrid-constraints
 
@@ -258,11 +259,13 @@ odfi::scenegraph::newLayout "flowGrid" {
         }
     }
 
-    ## Prepare list of widest elements in each column, for expand-align
+    ## Prepare list of widest elements, and X base positions in each column, for expand and align
     #################
     set columnsWidest {}
+    set columnsLargestX {}
     for {set i 0} {$i < $columns} {incr i} {
         lappend columnsWidest 0
+        lappend columnsLargestX 0
     }
 
     ## Now position Rows
@@ -288,7 +291,8 @@ odfi::scenegraph::newLayout "flowGrid" {
         foreach m $elts {
 
             #puts "-> Doing $j"
-            set columnWidest [lindex $columnsWidest $j]
+            set columnWidest    [lindex $columnsWidest $j]
+            set columnLargestX  [lindex $columnsLargestX $j]
 
             ## Spacing is not valid for 1st element
             ############
@@ -319,6 +323,12 @@ odfi::scenegraph::newLayout "flowGrid" {
                 set columnsWidest [lreplace $columnsWidest $j $j $eltWidth]
             }
 
+            ## Record the Height X base position in the column
+            set eltX [$m getX] 
+            if {$eltX > $columnLargestX} {
+                set columnsLargestX [lreplace $columnsLargestX $j $j $eltX]
+            }
+
             incr j
         }
 
@@ -342,6 +352,28 @@ odfi::scenegraph::newLayout "flowGrid" {
         incr groupCount
     }
 
+    ## Adjust all the columns to the same base X now 
+    ################################
+
+    $group eachInGroupsOf $columns {
+
+        for {set i 0} {$i < [llength $elts]} {incr i} {
+
+            set it [lindex $elts $i]
+
+            ## Get column Largest X and current element X 
+            set columnLargestX [lindex $columnsLargestX $i]
+            set eltX  [$it getX]
+            if {$eltX < $columnLargestX} {
+
+                $it right [expr $columnLargestX-$eltX]
+
+            }
+
+        }
+
+    }
+
     ## Adjust the Columns width now
     #######################
     if {$expandWidth==true} {
@@ -357,7 +389,7 @@ odfi::scenegraph::newLayout "flowGrid" {
 
                 set columnWidest [lindex $columnsWidest $col]
                 set eltWidth   [$it getWidth]
-                if {[::odfi::common::isClass $it ::edid::prototyping::fp::Group] && ($eltWidth < $columnWidest)} {
+                if {[::odfi::common::isClass $it ::odfi::scenegraph::Group] && ($eltWidth < $columnWidest)} {
                     $it relayout [list target-width $columnWidest]
                 }
 
@@ -369,6 +401,36 @@ odfi::scenegraph::newLayout "flowGrid" {
 
 
         }
+    } elseif {$alignWidth} {
+
+        #puts "Doing align width on grid"
+
+        ## Go other all group elements and add some spacing to elements smaller in widht than the widest
+        $group eachInGroupsOf $columns {
+
+            for {set i 0} {$i < [llength $elts]} {incr i} {
+
+                set it [lindex $elts $i]
+
+                ## Get column Widest and current element width 
+                set columnWidest [lindex $columnsWidest $i]
+                set eltWidth   [$it getWidth]
+
+                ## If smaller in width, then:
+                ##  - Move our X to be in the middle (x + half of remaining Space)
+                if {$eltWidth < $columnWidest} {
+
+                    set remainingSpace [expr $columnWidest - $eltWidth]
+
+                    ## Place in the middle 
+                    $it right [expr ($remainingSpace/2)]
+
+                }
+
+            }
+    
+        }
+
     }
 
 
@@ -399,7 +461,7 @@ odfi::scenegraph::newLayout "mirrorX" {
 
         ## Group -> Reverse
         ###########
-        if {[::odfi::common::isClass $it ::edid::prototyping::fp::Group]} {
+        if {[::odfi::common::isClass $it ::odfi::scenegraph::Group]} {
 
             $it mirrorY
             $it layout "reverseX"
@@ -477,7 +539,7 @@ odfi::scenegraph::newLayout "mirrorY" {
 
         ## Group -> Reverse
         ###########
-        if {[::odfi::common::isClass $it ::edid::prototyping::fp::Group]} {
+        if {[::odfi::common::isClass $it ::odfi::scenegraph::Group]} {
 
             $it mirrorX
             $it layout "reverseY"
