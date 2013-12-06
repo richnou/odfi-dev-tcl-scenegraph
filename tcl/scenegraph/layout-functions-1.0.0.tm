@@ -577,7 +577,7 @@ odfi::scenegraph::newLayout "reverseY" {
 
 
         set oldY [$elt getY]
-        set newX [expr $groupHeight-($oldY+[$elt getHeight])]
+        set newY [expr $groupHeight-($oldY+[$elt getHeight])]
 
 
 
