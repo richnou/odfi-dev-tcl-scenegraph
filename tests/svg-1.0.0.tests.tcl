@@ -5,6 +5,7 @@
 ## Unit Tests for SVG Scenegraph API
 #####################################
 
+package require odfi::tests
 package require odfi::scenegraph::svg 1.0.0
 
 
@@ -24,8 +25,8 @@ odfi::tests::test "4 Squares in grid" {
 
             addRect {
 
-                setWidth  20
-                setHeight 20
+                width  20
+                height 20
                 color "red"
 
             }
