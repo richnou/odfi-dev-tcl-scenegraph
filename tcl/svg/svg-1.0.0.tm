@@ -1,56 +1,34 @@
-## Implementation Layer to produce SVG using SceneGraph API
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#    Copyright (C) 2008 - 2014 Computer Architecture Group @ Uni. Heidelberg <http://ra.ziti.uni-heidelberg.de>
+#    
+
+##Implementation Layer to produce SVG using SceneGraph API
 package provide odfi::scenegraph::svg 1.0.0
 package require odfi::scenegraph      1.0.0
 
 namespace eval odfi::scenegraph::svg {
 
     ########################
-    ## SVG Base graphical Element
-    ########################
-    itcl::class BaseGraphicalElement {
-        inherit odfi::scenegraph::Node
-
-        ## Text Title
-        public variable title ""
-        odfi::common::classField public title "" -noDeclaration
-
-
-        ## Opacity
-        public variable opacity 1.0
-        odfi::common::classField protected opacity 1.0 -noDeclaration
-
-        ## Color 
-        public variable color "white"
-        odfi::common::classField protected color "white" -noDeclaration
-
-        ## Border ( Stroke)
-        public variable border "black"
-        odfi::common::classField protected border "black" -noDeclaration
-
-
-        ## Width 
-        public variable width 0
-        odfi::common::classField protected width 0 -noDeclaration
-
-        ## Height
-        public variable height 0
-        odfi::common::classField protected height 0 -noDeclaration
-
-
-        ## \brief Get the non oriented Width
-        public method getR0Width args {
-            return $width
-        }
-
-        ## \brief Get the non oriented Height
-        public method getR0Height args {
-            return $height
-        }
-    }
-
-    ########################
     ## SVG Group
     ########################
+    proc group closure {
+
+        set newGroup [::new [namespace current]::Group #auto $closure]
+
+        return $newGroup
+    }
     itcl::class Group {
         inherit odfi::scenegraph::Group
 
@@ -62,7 +40,7 @@ namespace eval odfi::scenegraph::svg {
         ## Adders to add SVG elements in a convienient way
         ##################
 
-        ## rect 
+        ## Add a <rect ../> construct 
         ###############
         public method addRect closure {
 
@@ -74,7 +52,21 @@ namespace eval odfi::scenegraph::svg {
 
         }
 
-        ## text 
+        ## Add a <circle ../> construct 
+        ###############
+        public method addCircle closure {
+
+            ## Create Rect with closure
+            set newCircle [::new [namespace parent]::Circle #auto $closure]
+
+            ## Append
+            add $newCircle
+
+            return $newCircle
+
+        }
+
+        ## Add a <text .../> construct 
         public method text {text {closure {}}} {
 
              ## Create Text with closure
@@ -83,26 +75,137 @@ namespace eval odfi::scenegraph::svg {
             ## Append
             add $newText
 
+             
+
+            return $newText
+
         }
 
+        ## Add a g group 
+        public method group closure {
 
+            set newGroup [::new [namespace parent]::Group #auto $closure]
+
+            add $newGroup
+
+            return $newGroup
+        }
   
+
+
+        ## To String : Output content of group members
+        ##################
+        public method toString out {
+
+         
+
+            ## Output
+            #################
+            odfi::common::println "<g  x=\"[getAbsoluteX]\"
+                y=\"[getAbsoluteY]\" >" $out
+
+            each {
+                $it toString $out
+            }
+
+            odfi::common::println "</g>" $out
+
+        }
 
     
 
     }
 
     ########################
+    ## SVG Base graphical Element
+    ########################
+    itcl::class BaseGraphicalElement {
+        inherit Group
+
+        ## Text Title
+        odfi::common::classField public title ""
+
+
+        ## Opacity
+        odfi::common::classField protected opacity 1.0
+
+        ## Color 
+        odfi::common::classField protected color "white"
+
+        ## Border ( Stroke)
+        odfi::common::classField protected border "black"
+
+
+        ## Width 
+        odfi::common::classField protected width 0
+
+        ## Height
+        odfi::common::classField protected height 0
+
+
+        ## \brief Get the non oriented Width
+        public method getR0Width args {
+
+            ## Adapt to Group size, or use local size 
+            set groupSize [odfi::scenegraph::Group::getR0Width]
+            if {$groupSize < [getSVGWidth]} {
+                return [getSVGWidth]
+            } else {
+                setSVGWidth $groupSize
+                return $groupSize
+            }
+
+            
+        }
+
+        ## \brief Get the non oriented Height
+        public method getR0Height args {
+
+            ## Adapt to Group size, or use local size 
+            set groupSize [odfi::scenegraph::Group::getR0Height]
+            if {$groupSize < [getSVGHeight]} {
+                return [getSVGHeight]
+            } else {
+                setSVGHeight $groupSize
+                return $groupSize
+            }
+
+        }
+
+        
+        public method setSVGWidth args {
+            width $args
+        }
+
+ 
+        public method getSVGWidth args {
+            return [width]
+        }
+        public method setSVGHeight args {
+            height $args
+        }
+
+        public method getSVGHeight args {
+           return [height]
+        }
+    }
+
+    
+
+    ########################
     ## SVG base Element
     ########################
+    proc svg closure {
+        return [::new [namespace current]::SVG #auto $closure]
+    }
     itcl::class SVG {
         inherit Group
 
         ## Width of graphic
-        odfi::common::classField protected width 0
+        #odfi::common::classField protected width 0
 
         ## height of graphic
-        odfi::common::classField protected height 0
+        #odfi::common::classField protected height 0
 
         
 
@@ -125,6 +228,7 @@ namespace eval odfi::scenegraph::svg {
             
             each {
 
+
                 $it toString $out
 
             }
@@ -144,6 +248,8 @@ namespace eval odfi::scenegraph::svg {
 
         }
 
+    
+
 
     }
 
@@ -161,7 +267,7 @@ namespace eval odfi::scenegraph::svg {
         odfi::common::classField protected rounded 0
 
 
-        constructor closure  {
+        constructor closure  {odfi::scenegraph::svg::Group::constructor ""}  {
 
             ## Eval closure
             odfi::closures::doClosure $closure
@@ -194,6 +300,76 @@ namespace eval odfi::scenegraph::svg {
 
     }
 
+    ## Circle
+    ##############
+    proc circle closure {
+        return [::new [namespace current]::Circle #auto $closure]
+    }
+    itcl::class Circle {
+        inherit BaseGraphicalElement
+        
+
+        ## Rounded Angle degrees. If 0, no rounded angles
+        odfi::common::classField protected radius 1
+
+
+        constructor closure   {odfi::scenegraph::svg::Group::constructor ""} {
+
+            ## Eval closure
+            odfi::closures::doClosure $closure
+    
+
+        }
+
+
+        ## To String : Output content of group members
+        public method toString out {
+
+
+
+            ## Prepare Parameters
+            ########################
+            set fill "fill=\"$color\""
+            set border "stroke=\"$border\""
+
+            ## Output
+            #################
+            odfi::common::println "<circle 
+                cy=\"[expr [getAbsoluteY]+[radius]]\"
+                cx=\"[expr [getAbsoluteX]+[radius]]\"
+                r=\"[radius]\"
+                opacity=\"[opacity]\"
+                $fill
+                ${border}><title>[title]</title></circle>" $out
+
+            each {
+
+                $it toString $out
+
+            }
+
+        }
+
+
+        public method setSVGWidth args {
+            radius [expr $args/2]
+        }
+
+        public method getSVGWidth args {
+            return [expr [radius]*2]
+        }
+        public method setSVGHeight args {
+            radius [expr $args/2]
+        }
+
+        public method getSVGHeight args {
+           return [expr [radius]*2]
+        }
+
+        
+
+    }
+
     package require Tk
     
 
@@ -204,20 +380,34 @@ namespace eval odfi::scenegraph::svg {
         inherit BaseGraphicalElement
 
         ## Text 
-        odfi::common::classField protected text ""
+        odfi::common::classField public text ""
 
         ## Font
-        odfi::common::classField protected font-family  "Verdana"
-        odfi::common::classField protected font-size    "12"
+        odfi::common::classField public font-family  "Verdana"
+        public variable font-size    "12"
+
+        public method font-size args {
+            if {$args==""} {
+                return ${font-size}
+            } else {
+                set {font-size} $args
+                updateTextSize
+            }
+            
+        }
 
         ## Text size 
-        odfi::common::classField protected textWidth   0
-        odfi::common::classField protected textHeight  0
+        odfi::common::classField public textWidth   0
+        odfi::common::classField public textHeight  0
 
-        constructor {cText closure} {
+        constructor {cText closure}  {odfi::scenegraph::svg::Group::constructor ""} {
 
             ## Init 
             ############
+
+            ## Fix Text 
+            set cText [string map {< &lt;} $cText]
+
             text   $cText 
             updateTextSize
             color  black
@@ -225,6 +415,8 @@ namespace eval odfi::scenegraph::svg {
 
             ## Eval closure
             odfi::closures::doClosure $closure
+
+
         }
 
         ## Updates size of element based on text
@@ -247,6 +439,8 @@ namespace eval odfi::scenegraph::svg {
 
 
         }
+
+       
 
         ## To String : Output content of group members
         public method toString out {       

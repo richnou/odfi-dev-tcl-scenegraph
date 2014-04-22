@@ -1,3 +1,19 @@
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#    Copyright (C) 2008 - 2014 Computer Architecture Group @ Uni. Heidelberg <http://ra.ziti.uni-heidelberg.de>
+
+
 package provide odfi::scenegraph::layouts 1.0.0
 
 
@@ -18,7 +34,7 @@ odfi::scenegraph::newLayout "column" {
     set targetHeight [$constraints getInt "target-height"]
 
     # TODO
-    #set alignWidth [$constraints getTrueFalse align-width false]
+    set alignWidth [$constraints getTrueFalse align-width false]
 
     ## Target Width is given, just adjust spacing
 
@@ -83,6 +99,24 @@ odfi::scenegraph::newLayout "column" {
           #  puts "**** Moved $elt from $before to $after"
 
         #}
+    }
+
+    ## Align width 
+    #########
+    if {$alignWidth} {
+
+        ## Get width of group 
+        set groupWidth [$group getWidth]
+
+        ## Add left offset to all elements beeing smaller
+        $group each {
+
+            set remainingSpace [expr $groupWidth - [$it getWidth]]
+            if {$remainingSpace>0} {
+                $elt right [expr $remainingSpace/2]
+            }
+        }
+
     }
 
 
@@ -281,7 +315,7 @@ odfi::scenegraph::newLayout "flowGrid" {
 
 
         ## - Row: Position each member at baseX + index * cellWidth
-        ## - Look for the Highest member to determine the row height
+        ## - Look for the tallest member to determine the row height
         #####################
         set rowHeight 0
 
@@ -592,3 +626,21 @@ odfi::scenegraph::newLayout "reverseY" {
 }
 
 
+## Center all the group children in the parent.
+## Best suited for groups having only one child
+odfi::scenegraph::newLayout "center" {
+
+    ## Get basic group informations
+
+    set groupWidth [$group getWidth]
+    set groupHeight [$group getHeight]
+
+    $group each {
+
+      #  puts "Positioning elelemtn $elt [$elt getWidth] // $groupHeight [$elt getHeight]"
+
+        $elt setY [expr ($groupHeight-[$elt getHeight])/2 - [expr [$elt getHeight]/2]]
+        $elt setX [expr ($groupWidth-[$elt getWidth])/2]
+    }
+
+}
