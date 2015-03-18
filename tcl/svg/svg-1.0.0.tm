@@ -42,6 +42,9 @@ namespace eval odfi::scenegraph::svg {
 
         ## Add a <rect ../> construct 
         ###############
+        public method rect closure {
+            addRect $closure
+        }
         public method addRect closure {
 
             ## Create Rect with closure
@@ -188,6 +191,13 @@ namespace eval odfi::scenegraph::svg {
         public method getSVGHeight args {
            return [height]
         }
+
+        ## Aliases 
+        ########################
+
+        public method fill ncolor {
+            color $ncolor
+        }
     }
 
     
@@ -198,6 +208,14 @@ namespace eval odfi::scenegraph::svg {
     proc svg closure {
         return [::new [namespace current]::SVG #auto $closure]
     }
+
+    ## Top SVG Factory method
+    proc createSvg {varName keyword closure} {
+
+        uplevel set $varName [::new [namespace current]::SVG #auto $closure]
+        
+    }
+
     itcl::class SVG {
         inherit Group
 
