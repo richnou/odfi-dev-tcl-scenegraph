@@ -525,3 +525,248 @@ odfi::scenegraph::newLayout2 "reverseZ" {
     }
 
 }
+
+
+## Make a flow Grid. That is a grid with a number of columns, and all the group members are sequentially added to each lines
+##########################
+odfi::scenegraph::newLayout2 "flowGrid" {
+    
+    ## sect: flowGrid-constraints
+    
+    
+    set columns         [$constraints getInt        columns -1]
+    set rows            [$constraints getInt        rows    -1]
+    set spacing         [$constraints getInt        spacing 0]
+    set row-spacing     [$constraints getInt        row-spacing -1]
+    set column-spacing  [$constraints getInt        column-spacing -1]
+    set alignHeight     [$constraints getTrueFalse  align-height false]
+    set alignWidth      [$constraints getTrueFalse  align-width false]
+    set expandWidth     [$constraints getTrueFalse  expand-width false]
+    ## eof-sect: flowGrid-constraints
+    
+    #puts "Building flow grid with $columns columns"
+    
+    ## Determine number of columns:
+    ##   - With the columns constraint
+    ##   - With the rows constraints
+    #########
+    if {$columns!=-1 && $rows != -1} {
+        edid::warning "Flow grid, both columns and rows constraints specified, columns takes precedence"
+    } elseif {$columns==-1 && $rows != -1} {
+        
+        ## Determine columns from whished rows
+        set columns [expr int(ceil(double([$group size])/double($rows)))]
+        
+        # puts "Determined $columns for [$group size] on $rows rows "
+        #$group each {
+            
+            #    puts "---> Element in group : [$elt getWidth] ([$elt members])"
+            #}
+        
+    } elseif {$columns==-1 && $rows == -1} {
+        
+        ## Error
+        edid::error "Flow grid needs at least columns/rows constraints"
+        
+    }
+    
+    
+    ## Spacings
+    ##  - Per default use spacing for row and column
+    ##  - If row/column -spacing is defined, overwrite
+    ##############
+    set columnSpacing  [expr ${column-spacing}   ==-1   ? $spacing : ${column-spacing} ]
+    set rowSpacing     [expr ${row-spacing}      ==-1   ? $spacing : ${row-spacing} ]
+    
+    #puts "Using Row Spacing: $rowSpacing"
+    
+    
+    
+    
+    ## Look for the Widest group to determine base cell size
+    #################
+    set cellWidth 0
+    $group each {
+        
+        set eltWidth [$elt getWidth]
+        if {$eltWidth > $cellWidth} {
+            set cellWidth $eltWidth
+        }
+    }
+    
+    ## Prepare list of widest elements, and X base positions in each column, for expand and align
+    #################
+    set columnsWidest {}
+    set columnsLargestX {}
+    for {set i 0} {$i < $columns} {incr i} {
+        lappend columnsWidest 0
+        lappend columnsLargestX 0
+    }
+    
+    ## Now position Rows
+    #######################
+    set baseX           0
+    set baseY           0
+    set groupCount      0
+    $group eachInGroupsOf $columns {
+        
+        #puts "Rowing group $groupCount : $elts, base x: $baseX, baseY: $baseY"
+        
+        
+        
+        
+        ## - Row: Position each member at baseX + index * cellWidth
+        ## - Look for the tallest member to determine the row height
+        #####################
+        set rowHeight 0
+        
+        ## This j will be our column index
+        set j 0
+        set previousXEnd 0
+        foreach m $elts {
+            
+            #puts "-> Doing $j"
+            set columnWidest    [lindex $columnsWidest $j]
+            set columnLargestX  [lindex $columnsLargestX $j]
+            
+            ## Spacing is not valid for 1st element
+            ############
+            set realSpacing [expr $j>0 ? $columnSpacing : 0]
+            
+            # Place based on last grouyp x positions
+            $m setX [expr $baseX+($previousXEnd)+$realSpacing]
+            #$m setX [expr $baseX+($j*$cellWidth)+$realSpacing]
+            $m setY $baseY
+            
+            ## This group becomes the previousEndX for the next in row
+            set previousXEnd [expr [$m getX]+[$m getWidth]]
+            
+            
+            #             puts "---> Element in group : [$m getWidth] (@[$m getX]  [$m getY] realSpacing $realSpacing)"
+            
+            
+            
+            ## Record the tallest element in this row
+            set eltHeight [$m getHeight]
+            if {$eltHeight > $rowHeight} {
+                set rowHeight $eltHeight
+            }
+            
+            ## Record the widest element in all for the columns
+            set eltWidth   [$m getWidth]
+            if {$eltWidth > $columnWidest} {
+                set columnsWidest [lreplace $columnsWidest $j $j $eltWidth]
+            }
+            
+            ## Record the Height X base position in the column
+            set eltX [$m getX] 
+            if {$eltX > $columnLargestX} {
+                set columnsLargestX [lreplace $columnsLargestX $j $j $eltX]
+            }
+            
+            incr j
+        }
+        
+        ## Adjust Height position in row
+        ## - If an element is smaller than the row height, add some offset to put it in the middle
+        #####################
+        if {$alignHeight==true} {
+            
+            foreach m $elts {
+                
+                set eltHeight [$m getHeight]
+                if {$eltHeight < $rowHeight} {
+                    $m up [expr ($rowHeight-$eltHeight)/2]
+                }
+            }
+            
+        }
+        
+        
+        set baseY [expr $baseY+$rowHeight+$rowSpacing]
+        incr groupCount
+    }
+    
+    ## Adjust all the columns to the same base X now 
+    ################################
+    
+    $group eachInGroupsOf $columns {
+        
+        for {set i 0} {$i < [llength $elts]} {incr i} {
+            
+            set it [lindex $elts $i]
+            
+            ## Get column Largest X and current element X 
+            set columnLargestX [lindex $columnsLargestX $i]
+            set eltX  [$it getX]
+            if {$eltX < $columnLargestX} {
+                
+                $it right [expr $columnLargestX-$eltX]
+                
+            }
+            
+        }
+        
+    }
+    
+    ## Adjust the Columns width now
+    #######################
+    if {$expandWidth==true} {
+        
+        #         puts "-----> Doing expand-width"
+        
+        ## Go other all group elements and relayout based on the calculated widest
+        $group eachInGroupsOf $columns {
+            
+            
+            set col 0
+            ::odfi::list::each $elts {
+                
+                set columnWidest [lindex $columnsWidest $col]
+                set eltWidth   [$it getWidth]
+                if {[::odfi::common::isClass $it ::odfi::scenegraph::Group] && ($eltWidth < $columnWidest)} {
+                    $it relayout [list target-width $columnWidest]
+                }
+                
+                incr col
+            }
+            
+            
+            
+            
+            
+        }
+    } elseif {$alignWidth} {
+        
+        #puts "Doing align width on grid"
+        
+        ## Go other all group elements and add some spacing to elements smaller in widht than the widest
+        $group eachInGroupsOf $columns {
+            
+            for {set i 0} {$i < [llength $elts]} {incr i} {
+                
+                set it [lindex $elts $i]
+                
+                ## Get column Widest and current element width 
+                set columnWidest [lindex $columnsWidest $i]
+                set eltWidth   [$it getWidth]
+                
+                ## If smaller in width, then:
+                ##  - Move our X to be in the middle (x + half of remaining Space)
+                if {$eltWidth < $columnWidest} {
+                    
+                    set remainingSpace [expr $columnWidest - $eltWidth]
+                    
+                    ## Place in the middle 
+                    $it right [expr ($remainingSpace/2)]
+                    
+                }
+                
+            }
+            
+        }
+        
+    }
+    
+    
+}

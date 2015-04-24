@@ -374,9 +374,10 @@ namespace eval odfi::scenegraph {
 
         ## \brief Invalidates the parent's size cache if there is a parent, and it is a group
         :public method invalidateParentSize args {
-            if {[:parent]!="" && "[[:parent] info class]" == "[namespace parent]::Group"} {
-                [:parent] invalidateSize
-            }
+            catch {[:parent] invalidateSize}
+           ## if {[:parent]!="" && "[[:parent] info class]" == "[namespace parent]::Group"} {
+           #     
+           # }
         }
 
         ## \brief Changes the orientation of node to get a mirrored on X Axe
@@ -430,13 +431,13 @@ namespace eval odfi::scenegraph {
         ## \brief Set X position relative to parent
         :public method setX fX {
             #set :x [expr $fX < 0 ? 0 : $fX]
-            set :x $fX
+            set :x [expr $fX]
             :invalidateParentSize
         }
         
         :public method x args {
-            if {[string is double $args]} {
-                :setX $args
+            if {[string is double [expr $args]]} {
+                :setX [expr $args]
             }
             :getX
         }
@@ -449,13 +450,13 @@ namespace eval odfi::scenegraph {
         ## \brief Set Y position relative to parent
         :public method setY fY {
             #set :y [expr $fY < 0 ? 0 : $fY]
-            set :y $fY
+            set :y [expr $fY]
             :invalidateParentSize
         }
         
         :public method y args {
-            if {[string is double $args]} {
-                :setY $args
+            if {[string is double [expr $args]]} {
+                :setY [expr $args]
             }
             :getY
         }
@@ -468,13 +469,13 @@ namespace eval odfi::scenegraph {
         ## \brief Set Y position relative to parent
         :public method setZ fz {
             #set :y [expr $fY < 0 ? 0 : $fY]
-            set :z $fz
+            set :z [expr $fz]
             :invalidateParentSize
         }
         
         :public method z args {
-            if {[string is double $args]} {
-                :setZ $args
+            if {[string is double [expr $args]]} {
+                :setZ [expr $args]
             }
             :getZ
         }
@@ -896,22 +897,24 @@ namespace eval odfi::scenegraph {
         ## \brief Calls script once on each groups of #number of elements. an elts variable provides the group content, the i index provides the group index
         :public method eachInGroupsOf {number script} {
 
-            set numberofGroups [expr ceil(double([size])/double($number))]
-            set membersCopy [members]
+            set numberofGroups [expr ceil(double([:size])/double($number))]
+            set membersCopy [[:members] asTCLList]
+            #puts "Members Copy: $membersCopy ([:size])"
             for {set i 0} {$i < $numberofGroups} {incr i} {
 
                # puts "eachInGroupsOf index $i of $numberofGroups (num: $number and size: [size])"
 
                 ## Calculate range
                 set first [expr $i*$number]
-                set last  [expr ($first+($number-1))>=[llength ${:members}Copy]? [llength ${:members}Copy]-1 : $first+($number-1)]
+                set last  [expr ($first+($number-1))>=[llength $membersCopy]? [llength $membersCopy]-1 : $first+($number-1)]
 
 
                 ## create group
-                set elts [lrange ${:members}Copy $first $last]
+                set elts [lrange $membersCopy $first $last]
 
                 ## call script
-                eval "uplevel 1 {" "set elts {$elts};" "$script}"
+                #eval "uplevel 1 {" "set elts {$elts};" "$script}"
+                uplevel [list odfi::closures::applyLambda $script [list elts  $elts] [list i $i]]           
             }
 
 
@@ -947,7 +950,7 @@ namespace eval odfi::scenegraph {
 
             ## Remove group members that are specified in the new group
             ##############
-            puts "Regrouping togeteher $gmembers"
+            #puts "Regrouping togeteher $gmembers"
             foreach gmember $gmembers {
 
                 ## If element is not an object, try a byName search
@@ -1194,7 +1197,8 @@ namespace eval odfi::scenegraph {
                   
                 set actualY         [$it getY]                
                 set actualEndY     [expr [$it getY]+[$it getHeight]]   
-                                               
+                 
+                # ::puts "Found Height EndY: $actualY -> $actualEndY"                              
                 
                 if {$actualEndY > $mty} {
                     ::set mty $actualEndY
@@ -1256,9 +1260,11 @@ namespace eval odfi::scenegraph {
         ###################
         
         :public method width args {
-            if {[string is double $args]} {
+           
+            if {$args!="" && [string is double [expr $args]]} {
                 
-                set :r0Width $args
+                set :r0Width [expr $args]
+                :invalidateParentSize                
             }
             return ${:r0Width}
             
@@ -1266,9 +1272,10 @@ namespace eval odfi::scenegraph {
         
         :public method height args {
             
-            if {[string is double $args]} {
+            if {$args!="" && [string is double [expr $args]]} {
                             
-                set :r0Height $args
+                set :r0Height [expr $args]
+                :invalidateParentSize                
             }
             return ${:r0Height}
           
@@ -1276,9 +1283,10 @@ namespace eval odfi::scenegraph {
         
         :public method depth args {
             
-            if {[string is double $args]} {
+            if {$args!="" && [string is double [expr $args]]} {
                 set :r0DepthLock true           
-                set :r0Depth $args
+                set :r0Depth [expr $args]
+                :invalidateParentSize                
             }
             return ${:r0Depth}
            

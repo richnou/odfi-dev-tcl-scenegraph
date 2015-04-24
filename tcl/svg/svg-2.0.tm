@@ -50,6 +50,29 @@ namespace eval odfi::scenegraph::svg {
         #}
 
     }
+    
+    nx::Class create TextLanguage {
+        
+        
+        ## Add a <text .../> construct
+        :public method text {text {closure {}}} {
+            
+            ## Create Text with closure
+            set newText [[namespace current]::Text new -text $text]
+            
+            
+            ## Append
+            :add $newText
+            
+            
+            $newText apply $closure            
+            
+            
+            return $newText
+            
+        }        
+        
+    }    
 
     nx::Class create SVGGroupBuilder {
 
@@ -74,6 +97,7 @@ namespace eval odfi::scenegraph::svg {
 
         :mixins add SVGGroupBuilder
         :mixins add RectLanguage
+        :mixins add TextLanguage        
 
         :public method svg {name closure} {
 
@@ -138,20 +162,7 @@ namespace eval odfi::scenegraph::svg {
 
         }
 
-        ## Add a <text .../> construct
-        :public method text {text {closure {}}} {
-
-             ## Create Text with closure
-            set newText [::new [namespace parent]::Text #auto $text $closure]
-
-            ## Append
-            add $newText
-
-
-
-            return $newText
-
-        }
+        
 
 
 
@@ -291,6 +302,35 @@ namespace eval odfi::scenegraph::svg {
         $svg apply $closure
         return $svg
     }
+    
+    proc svg2 args {
+        
+        ## Test input arguments
+        ##############
+        if {[llength $args]>1} {
+            set vartarget [lindex $args 0]
+            set closure [lindex $args 1]
+        } elseif {[llength $args]==1} {
+            set closure $args
+        } else {
+            error "svg format: svg name closure or svg closure"
+        }
+        
+        ## Create SVG
+        ###########
+        set svg [SVG new]
+        $svg apply $closure
+           
+        ## Set Var if necessary
+        ################
+        if {[info exists vartarget]} {
+            uplevel set $vartarget $svg
+        }
+        ## Return
+        ############
+        return $svg
+    }    
+    
 
     ## Top SVG Factory method
     proc createSvg {varName keyword closure} {
@@ -553,9 +593,9 @@ namespace eval odfi::scenegraph::svg {
 
         :public method font-size args {
             if {$args==""} {
-                return ${font-size}
+                return ${:font-size}
             } else {
-                set {font-size} $args
+                set :font-size $args
                 :updateTextSize
             }
 
@@ -569,32 +609,71 @@ namespace eval odfi::scenegraph::svg {
         :method init {} {
 
             ## Fix Text
-            set cText [string map {< &lt;} $cText]
+            set :text [string map {< &lt;} ${:text}]
 
-            text   $cText
-            updateTextSize
-            color  black
-            border black
+            :updateTextSize
+            :color  set black
+            :border set black
+            
+            next
         }
 
 
+        :public method reduceProduce args {
+            
+            
+            set out [odfi::common::newStringChannel]
+            
+            ## Output
+            ################
+            odfi::common::println "<text  x=\"[:getAbsoluteX]\"
+            y=\"[:getAbsoluteY]\"
+            width=\"[:width]\"
+            height=\"[:height]\"
+            opacity=\"[:opacity get]\"
+            
+            font-family=\"[:font-family get]\"
+            font-size=\"[:font-size]\"
+            
+            dx=\"0\"
+            dy=\"[expr [:height] - ([:height]-${:textHeight})/2]\"
+            
+            fill=\"[:color get]\"
+            stroke=\"[:border get]\" 
+            
+            >${:text}</text>" $out            
+            
+         #[expr ([:width]-${:textWidth})/2]
+            
+            #odfi::common::println [join $args]       $out     
+            
+            ## Read Result
+            ###################
+            flush $out
+            set res [read $out]
+            #itcl::delete object $out            
+            close $out
+            return $res
+            
+        }        
+        
 
         ## Updates size of element based on text
         :public method updateTextSize args {
 
             ## Try to Estimate the space required by the text under the provided font
             ###############
-            set font [font create -family [:font-family] -size [:font-size]]
+            set font [font create -family [:font-family get] -size [:font-size]]
 
-            set textWidth [font measure $font [:text]]
-            set textHeight [expr [font metric $font -ascent] + [font metric $font -descent]]
+            set :textWidth [font measure $font ${:text}]
+            set :textHeight [expr [font metric $font -ascent] + [font metric $font -descent]]
 
             ## If base width/height is too small, adapt to text size
-            if {[:width]<$textWidth} {
-                :width $textWidth
+            if {[:width]<${:textWidth}} {
+                :width ${:textWidth}
             }
-            if {[:height]<$textHeight} {
-                :height $textHeight
+            if {[:height]<${:textHeight}} {
+                :height ${:textHeight}
             }
 
 
